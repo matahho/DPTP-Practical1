@@ -251,3 +251,36 @@ func example3() proc {
 							}}}}}}}}}}
 }
 
+func my_example1() proc {
+	// a(x1,x2,x3)
+	p1 := input_proc{
+		channel: "a",
+		vars:    []string{"x1", "x2", "x3"},
+		cont:    nil_proc{},
+	}
+	return p1
+}
+
+func my_example2() proc {
+	// a(x1,x2,x3).b(y1,y2,y3).0
+	p1 := input_proc{
+		channel: "a",
+		vars:    []string{"x1", "x2", "x3"},
+		cont: input_proc{
+			channel: "b",
+			vars:    []string{"y1", "y2", "y3"},
+			cont:    nil_proc{},
+		},
+	}
+	return p1
+}
+
+func my_example3() proc {
+	// a<b1,b2,b3>
+	p1 := output_proc{
+		channel: "a",
+		values:  []string{"b1", "b2", "b3"},
+		cont:    nil_proc{},
+	}
+	return p1
+}

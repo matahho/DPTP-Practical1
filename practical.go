@@ -39,9 +39,50 @@ func to_monadic(p proc) proc {
 	case nil_proc:
 		return nil_proc{}
 
-	default:
-		panic("Not implemented")
+	case input_proc:
+		stablished_channel := fresh_var()
+		var constructed_cont proc
+		constructed_cont = to_monadic(p.cont)
+
+		for i := len(p.vars) - 1; i >= 0; i-- {
+			generated := input_proc{
+				channel: stablished_channel,
+				vars:    []string{p.vars[i]},
+				cont:    constructed_cont,
+			}
+			constructed_cont = generated
+		}
+
+		return input_proc{
+			channel: p.channel,
+			vars:    []string{stablished_channel},
+			cont:    constructed_cont,
+		}
+
+	case output_proc:
+		stablished_channel := fresh_name()
+		var constructed_cont proc
+		constructed_cont = to_monadic(p.cont)
+		for i := len(p.values) - 1; i >= 0; i-- {
+			generated := output_proc{
+				channel: stablished_channel,
+				values:  []string{p.values[i]},
+				cont:    constructed_cont,
+			}
+			constructed_cont = generated
+		}
+
+		return res_proc{
+			channel: stablished_channel,
+			cont: output_proc{
+				channel: p.channel,
+				values:  []string{stablished_channel},
+				cont:    constructed_cont,
+			},
+		}
+
 	}
+	return nil_proc{}
 }
 
 // monadic synchronous to monadic asynchronous
@@ -83,12 +124,15 @@ func run(p proc, stack map[string]chan any) {
 }
 
 func main() {
-	p := example1()
+	p := my_example3()
 	fmt.Printf("Example: %s\n\n", p)
-	pi := indirect_encoding(p)
-	fmt.Printf("Indirect Encoding: %s\n\n", pi)
-	pd := direct_encoding(p)
-	fmt.Printf("Direct Encoding: %s\n\n", pd)
-	run(pi, make(map[string]chan any))
-	run(pd, make(map[string]chan any))
+	fmt.Println(to_monadic(p))
+
+	//
+	//pi := indirect_encoding(p)
+	//fmt.Printf("Indirect Encoding: %s\n\n", pi)
+	//pd := direct_encoding(p)
+	//fmt.Printf("Direct Encoding: %s\n\n", pd)
+	//run(pi, make(map[string]chan any))
+	//run(pd, make(map[string]chan any))
 }
