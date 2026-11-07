@@ -39,6 +39,16 @@ func to_monadic(p proc) proc {
 	case nil_proc:
 		return nil_proc{}
 
+	case parallel_proc:
+		return parallel_proc{
+			left:  to_monadic(p.left),
+			right: to_monadic(p.right),
+		}
+	case repl_proc:
+		return repl_proc{
+			to_monadic(p.cont),
+		}
+
 	case input_proc:
 		stablished_channel := fresh_var()
 		var constructed_cont proc
@@ -124,9 +134,10 @@ func run(p proc, stack map[string]chan any) {
 }
 
 func main() {
-	p := my_example3()
+	p := example3()
 	fmt.Printf("Example: %s\n\n", p)
 	fmt.Println(to_monadic(p))
+	fmt.Println(to_monadic(p).is_monadic())
 
 	//
 	//pi := indirect_encoding(p)
