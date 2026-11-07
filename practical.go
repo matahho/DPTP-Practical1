@@ -6,7 +6,25 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
+
+var free_name_counter = 0
+var free_var_counter = 0
+
+func fresh_name() string {
+	new_name := "_a" + strconv.Itoa(free_name_counter)
+	free_name_counter++
+	return new_name
+}
+
+func fresh_var() string {
+	new_var := "_x" + strconv.Itoa(free_var_counter)
+	free_var_counter++
+	return new_var
+}
 
 // polyadic synchronous to monadic synchronous
 func to_monadic(p proc) proc {
