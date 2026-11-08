@@ -46,7 +46,7 @@ func (p output_proc) is_monadic() bool {
 }
 func (p output_proc) is_monadic_async() bool {
 	return (len(p.values) == 1) && p.cont == nil // async pi-calculus does not have continuation
-}
+} // Ask this if nil == nil_proc or not?
 func (p output_proc) String() string {
 	if p.cont == nil {
 		return fmt.Sprintf("-%s<%s>", p.channel, strings.Join(p.values, ","))
@@ -276,10 +276,10 @@ func my_example2() proc {
 }
 
 func my_example3() proc {
-	// a<b1,b2,b3>
+	// a<b1>
 	p1 := output_proc{
 		channel: "a",
-		values:  []string{"b1", "b2", "b3"},
+		values:  []string{"b1"},
 		cont:    nil_proc{},
 	}
 	return p1
