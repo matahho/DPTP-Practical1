@@ -190,7 +190,6 @@ func indirect_encoding(p proc) proc {
 	var monadic_encoding = to_monadic(p)
 	var monadic_async_encoding = to_async(monadic_encoding)
 	return monadic_async_encoding
-
 }
 
 func direct_encoding(p proc) proc {
