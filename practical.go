@@ -145,7 +145,7 @@ func to_async(p proc) proc {
 					output_proc{
 						stablised_channel_on_sender_side,
 						[]string{stablised_channel_on_receiver_side},
-						nil_proc{},
+						nil,
 					},
 					input_proc{
 						stablised_channel_on_receiver_side,
@@ -187,7 +187,10 @@ func to_async(p proc) proc {
 }
 
 func indirect_encoding(p proc) proc {
-	panic("Not implemented")
+	var monadic_encoding = to_monadic(p)
+	var monadic_async_encoding = to_async(monadic_encoding)
+	return monadic_async_encoding
+
 }
 
 func direct_encoding(p proc) proc {
@@ -203,9 +206,9 @@ func run(p proc, stack map[string]chan any) {
 }
 
 func main() {
-	p := my_example3()
+	p := example3()
 	fmt.Printf("Example: %s\n\n", p)
-	var indirect = to_async(to_monadic(p))
+	var indirect = indirect_encoding(p)
 	fmt.Printf("Indirect Encoding: %s\n\n", indirect)
 	fmt.Println(indirect.is_monadic_async())
 
