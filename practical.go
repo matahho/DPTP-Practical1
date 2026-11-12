@@ -133,22 +133,22 @@ func to_async(p proc) proc {
 
 	case input_proc:
 
-		stablised_channel_on_receiver_side := fresh_name() // which is "d" in the doc
-		stablised_channel_on_sender_side := fresh_var()    // which is "y" in the doc
+		established_channel_on_receiver_side := fresh_name() // which is "d" in the doc
+		established_channel_on_sender_side := fresh_var()    // which is "y" in the doc
 
 		return input_proc{
 			channel: p.channel,
-			vars:    []string{stablised_channel_on_sender_side},
+			vars:    []string{established_channel_on_sender_side},
 			cont: res_proc{
-				channel: stablised_channel_on_receiver_side,
+				channel: established_channel_on_receiver_side,
 				cont: parallel_proc{
 					output_proc{
-						stablised_channel_on_sender_side,
-						[]string{stablised_channel_on_receiver_side},
+						established_channel_on_sender_side,
+						[]string{established_channel_on_receiver_side},
 						nil,
 					},
 					input_proc{
-						stablised_channel_on_receiver_side,
+						established_channel_on_receiver_side,
 						[]string{p.vars[0]}, // we are sure that it is monadic (becauce of the panic in the beginning of this func)
 						to_async(p.cont),
 					},
@@ -157,22 +157,22 @@ func to_async(p proc) proc {
 		}
 
 	case output_proc:
-		stablised_channel_on_receiver_side := fresh_name() // which is "y" in the doc
-		stablised_channel_on_sender_side := fresh_var()    // which is "c" in the doc
+		established_channel_on_receiver_side := fresh_name() // which is "y" in the doc
+		established_channel_on_sender_side := fresh_var()    // which is "c" in the doc
 		return res_proc{
-			channel: stablised_channel_on_sender_side,
+			channel: established_channel_on_sender_side,
 			cont: parallel_proc{
 				output_proc{
 					channel: p.channel,
-					values:  []string{stablised_channel_on_sender_side},
+					values:  []string{established_channel_on_sender_side},
 					cont:    nil,
 				},
 				input_proc{
-					channel: stablised_channel_on_sender_side,
-					vars:    []string{stablised_channel_on_receiver_side},
+					channel: established_channel_on_sender_side,
+					vars:    []string{established_channel_on_receiver_side},
 					cont: parallel_proc{
 						left: output_proc{
-							channel: stablised_channel_on_receiver_side,
+							channel: established_channel_on_receiver_side,
 							values:  []string{p.values[0]}, // we are sure that it is monadic (becauce of the panic in the beginning of this func)
 							cont:    nil,
 						},
@@ -192,8 +192,108 @@ func indirect_encoding(p proc) proc {
 	return monadic_async_encoding
 }
 
+func output_direct_encoding(p output_proc) proc {
+	var fixed_stablished_channel = fresh_name()
+	var continuation = direct_encoding(p.cont)
+
+	for i := len(p.values) - 1; i >= 0; i-- {
+		var temp_channel = fresh_var()
+
+		var sending_data = output_proc{
+			temp_channel,
+			[]string{p.values[i]},
+			nil,
+		}
+
+		continuation = parallel_proc{
+			right: continuation,
+			left:  sending_data,
+		}
+
+		continuation = input_proc{
+			channel: fixed_stablished_channel,
+			vars:    []string{temp_channel},
+			cont:    continuation,
+		}
+
+	}
+	return res_proc{
+		channel: fixed_stablished_channel,
+		cont: parallel_proc{
+			output_proc{
+				p.channel,
+				[]string{fixed_stablished_channel},
+				nil,
+			},
+			continuation,
+		},
+	}
+}
+
+func input_direct_encoding(p input_proc) proc {
+	var received_channel = fresh_var() // in here it is "y"
+	var main_channel = fresh_name()    // in here it is "d"
+	var continuation = direct_encoding(p.cont)
+
+	for i := len(p.vars) - 1; i >= 0; i-- {
+
+		sending_channel_to_receive_data := output_proc{
+			channel: received_channel,
+			values:  []string{main_channel},
+			cont:    nil,
+		}
+		receiving_message := input_proc{
+			main_channel,
+			[]string{p.vars[i]},
+			continuation,
+		}
+
+		continuation = parallel_proc{
+			left:  sending_channel_to_receive_data,
+			right: receiving_message,
+		}
+	}
+
+	return input_proc{
+		channel: p.channel,
+		vars:    []string{received_channel},
+		cont: res_proc{
+			main_channel,
+			continuation,
+		},
+	}
+}
+
 func direct_encoding(p proc) proc {
-	panic("Not implemented")
+	switch p := p.(type) {
+	case nil_proc:
+		return nil_proc{}
+
+	case parallel_proc:
+		return parallel_proc{
+			left:  direct_encoding(p.left),
+			right: direct_encoding(p.right),
+		}
+
+	case input_proc:
+		return input_direct_encoding(p)
+	case output_proc:
+		return output_direct_encoding(p)
+
+	case res_proc:
+		return res_proc{
+			channel: p.channel,
+			cont:    direct_encoding(p.cont),
+		}
+	case repl_proc:
+		return repl_proc{
+			direct_encoding(p.cont),
+		}
+
+	default:
+		return nil_proc{}
+	}
+
 }
 
 // runner for monadic asynchronous pi-calculus (might not terminate)
