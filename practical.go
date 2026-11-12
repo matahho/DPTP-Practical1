@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 )
 
@@ -317,7 +318,7 @@ func run(p proc, stack map[string]chan any) {
 	case res_proc:
 		private_channel := make(chan any, 10_000)
 		stack[p.channel] = private_channel
-		run(p, stack)
+		run(p.cont, stack)
 
 	case output_proc:
 		target_channel := stack[p.channel]
@@ -326,17 +327,17 @@ func run(p proc, stack map[string]chan any) {
 		return // since it is async nothing is following the output
 
 	case input_proc:
-		channel_name := p.channel
-		channel := stack[channel_name]
-		val := <-channel
-		// i dont have any idea
-		stack[val] = make(chan any, 10_000)
-		run(p, stack)
+		// u(x).Q
+		u := p.channel
+		x := p.vars[0]
+		val := <-stack[u]
+		stack[x] = val
+		run(p.cont, stack)
 
 	case parallel_proc:
-		go run(p.left, stack)
-		go run(p.right, stack)
-
+		go run(p.left, maps.Clone(stack))
+		go run(p.right, maps.Clone(stack))
+		
 	case repl_proc:
 		for {
 			go run(p, stack)
