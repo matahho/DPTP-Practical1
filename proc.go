@@ -284,3 +284,19 @@ func my_example3() proc {
 	}
 	return p1
 }
+
+func output_polyadic_sync_example() proc {
+	return output_proc{
+		channel: "u",
+		values:  []string{"v1", "v2", "v3"},
+		cont:    nil,
+	}
+}
+
+func input_polyadic_sync_example() proc {
+	return input_proc{
+		channel: "u",
+		vars:    []string{"x1", "x2", "x3"},
+		cont:    nil,
+	}
+}

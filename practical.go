@@ -98,8 +98,11 @@ func to_monadic(p proc) proc {
 				cont:    constructed_cont,
 			},
 		}
+	case nil:
+		return nil_proc{}
 	default:
 		panic("Not implemented")
+
 	}
 }
 
@@ -181,8 +184,11 @@ func to_async(p proc) proc {
 				},
 			},
 		}
+	case nil:
+		return nil_proc{}
 	default:
 		panic("Not implemented")
+
 	}
 }
 
@@ -290,6 +296,8 @@ func direct_encoding(p proc) proc {
 			direct_encoding(p.cont),
 		}
 
+	case nil:
+		return nil_proc{}
 	default:
 		panic("Not implemented")
 	}
@@ -305,17 +313,22 @@ func run(p proc, stack map[string]chan any) {
 }
 
 func main() {
-	p := example3()
-	fmt.Printf("Example: %s\n\n", p)
-	var indirect = indirect_encoding(p)
-	fmt.Printf("Indirect Encoding: %s\n\n", indirect)
-	fmt.Println(indirect.is_monadic_async())
+	//p := input_polyadic_sync_example()
+	//fmt.Printf("Example: %s\n\n", p)
+	//var direct = direct_encoding(p)
+	//fmt.Printf("Indirect Encoding: %s\n\n", direct)
+	//fmt.Println(direct.is_monadic_async())
 
-	//
-	//pi := indirect_encoding(p)
-	//fmt.Printf("Indirect Encoding: %s\n\n", pi)
-	//pd := direct_encoding(p)
-	//fmt.Printf("Direct Encoding: %s\n\n", pd)
-	//run(pi, make(map[string]chan any))
-	//run(pd, make(map[string]chan any))
+	p := example1()
+	fmt.Printf("Example: %s\n\n", p)
+	pi := indirect_encoding(p)
+	fmt.Printf("Indirect Encoding: %s\n\n", pi)
+	fmt.Println(pi.is_monadic_async())
+
+	pd := direct_encoding(p)
+	fmt.Printf("Direct Encoding: %s\n\n", pd)
+	fmt.Println(pd.is_monadic_async())
+
+	run(pi, make(map[string]chan any))
+	run(pd, make(map[string]chan any))
 }
