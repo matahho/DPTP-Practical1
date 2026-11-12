@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
+	"time"
 )
 
 var free_name_counter = 0
@@ -305,6 +306,25 @@ func direct_encoding(p proc) proc {
 
 }
 
+const chan_buffer = 8
+
+func lookup(stack map[string]chan any, name string) chan any {
+	ch, ok := stack[name]
+	if !ok {
+		panic("unbound name or variable: " + name)
+	}
+	return ch
+}
+
+// Everything travelling over a channel is itself a channel, so every received value must be a chan any.
+func as_channel(val any, where string) chan any {
+	ch, ok := val.(chan any)
+	if !ok {
+		panic("received a non-channel value on " + where)
+	}
+	return ch
+}
+
 // runner for monadic asynchronous pi-calculus (might not terminate)
 func run(p proc, stack map[string]chan any) {
 	if !p.is_monadic_async() {
@@ -312,57 +332,77 @@ func run(p proc, stack map[string]chan any) {
 	}
 
 	switch p := p.(type) {
+
 	case nil_proc:
 		return
 
 	case res_proc:
-		private_channel := make(chan any, 10_000)
-		stack[p.channel] = private_channel
+		stack[p.channel] = make(chan any, chan_buffer)
+		fmt.Printf("[nu]   %s\n", p.channel)
 		run(p.cont, stack)
 
 	case output_proc:
-		target_channel := stack[p.channel]
-		payload := stack[p.values[0]]
-		target_channel <- payload
-		return // since it is async nothing is following the output
+		// u < a > , since it is async no more cont is needed
+		target := lookup(stack, p.channel)
+		payload := lookup(stack, p.values[0])
+		fmt.Printf("[send] %s<%s>\n", p.channel, p.values[0])
+		target <- payload
+		return
 
 	case input_proc:
-		// u(x).Q
-		u := p.channel
-		x := p.vars[0]
-		val := <-stack[u]
-		stack[x] = val
+		// u(x).P : block until a channel arrives on u
+		source := lookup(stack, p.channel) // u
+		val := <-source                    // x
+		stack[p.vars[0]] = as_channel(val, p.channel)
+		fmt.Printf("[recv] %s(%s)\n", p.channel, p.vars[0])
 		run(p.cont, stack)
 
 	case parallel_proc:
 		go run(p.left, maps.Clone(stack))
 		go run(p.right, maps.Clone(stack))
-		
-	case repl_proc:
-		for {
-			go run(p, stack)
-		}
-	}
+		return
 
+	case repl_proc:
+		guard, ok := p.cont.(input_proc)
+		if !ok {
+			panic("replication must be input-guarded")
+		}
+		source := lookup(stack, guard.channel)
+		base := maps.Clone(stack)
+		go func() {
+			for {
+				val := <-source
+				s := maps.Clone(base)
+				s[guard.vars[0]] = as_channel(val, guard.channel)
+				fmt.Printf("[recv] %s(%s) (replicated)\n", guard.channel, guard.vars[0])
+				go run(guard.cont, s)
+			}
+		}()
+		return
+
+	default:
+		panic("Not implemented")
+	}
 }
 
 func main() {
-	//p := input_polyadic_sync_example()
-	//fmt.Printf("Example: %s\n\n", p)
-	//var direct = direct_encoding(p)
-	//fmt.Printf("Indirect Encoding: %s\n\n", direct)
-	//fmt.Println(direct.is_monadic_async())
-
-	p := example1()
+	p := example3()
 	fmt.Printf("Example: %s\n\n", p)
+
 	pi := indirect_encoding(p)
 	fmt.Printf("Indirect Encoding: %s\n\n", pi)
-	fmt.Println(pi.is_monadic_async())
 
 	pd := direct_encoding(p)
 	fmt.Printf("Direct Encoding: %s\n\n", pd)
-	fmt.Println(pd.is_monadic_async())
 
+	// run() returns as soon as it has spawned its goroutines -- there is no
+	// termination detection (handout 4d) -- so the main thread has to wait for
+	// them itself (handout 4e).
+	fmt.Println("--- running indirect encoding ---")
 	run(pi, make(map[string]chan any))
+	time.Sleep(500 * time.Millisecond)
+
+	fmt.Println("\n--- running direct encoding ---")
 	run(pd, make(map[string]chan any))
+	time.Sleep(500 * time.Millisecond)
 }
