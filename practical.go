@@ -309,7 +309,40 @@ func run(p proc, stack map[string]chan any) {
 	if !p.is_monadic_async() {
 		panic("Input process must be monadic and asynchronous")
 	}
-	panic("Not implemented")
+
+	switch p := p.(type) {
+	case nil_proc:
+		return
+
+	case res_proc:
+		private_channel := make(chan any, 10_000)
+		stack[p.channel] = private_channel
+		run(p, stack)
+
+	case output_proc:
+		target_channel := stack[p.channel]
+		payload := stack[p.values[0]]
+		target_channel <- payload
+		return // since it is async nothing is following the output
+
+	case input_proc:
+		channel_name := p.channel
+		channel := stack[channel_name]
+		val := <-channel
+		// i dont have any idea
+		stack[val] = make(chan any, 10_000)
+		run(p, stack)
+
+	case parallel_proc:
+		go run(p.left, stack)
+		go run(p.right, stack)
+
+	case repl_proc:
+		for {
+			go run(p, stack)
+		}
+	}
+
 }
 
 func main() {
