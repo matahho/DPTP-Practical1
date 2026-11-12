@@ -54,13 +54,13 @@ func to_monadic(p proc) proc {
 			return p
 		}
 
-		stablished_channel := fresh_var()
+		established_channel := fresh_var()
 		var constructed_cont proc
 		constructed_cont = to_monadic(p.cont)
 
 		for i := len(p.vars) - 1; i >= 0; i-- {
 			generated := input_proc{
-				channel: stablished_channel,
+				channel: established_channel,
 				vars:    []string{p.vars[i]},
 				cont:    constructed_cont,
 			}
@@ -69,7 +69,7 @@ func to_monadic(p proc) proc {
 
 		return input_proc{
 			channel: p.channel,
-			vars:    []string{stablished_channel},
+			vars:    []string{established_channel},
 			cont:    constructed_cont,
 		}
 
@@ -78,12 +78,12 @@ func to_monadic(p proc) proc {
 			return p
 		}
 
-		stablished_channel := fresh_name()
+		established_channel := fresh_name()
 		var constructed_cont proc
 		constructed_cont = to_monadic(p.cont)
 		for i := len(p.values) - 1; i >= 0; i-- {
 			generated := output_proc{
-				channel: stablished_channel,
+				channel: established_channel,
 				values:  []string{p.values[i]},
 				cont:    constructed_cont,
 			}
@@ -91,15 +91,15 @@ func to_monadic(p proc) proc {
 		}
 
 		return res_proc{
-			channel: stablished_channel,
+			channel: established_channel,
 			cont: output_proc{
 				channel: p.channel,
-				values:  []string{stablished_channel},
+				values:  []string{established_channel},
 				cont:    constructed_cont,
 			},
 		}
 	default:
-		return nil_proc{}
+		panic("Not implemented")
 	}
 }
 
@@ -149,7 +149,7 @@ func to_async(p proc) proc {
 					},
 					input_proc{
 						established_channel_on_receiver_side,
-						[]string{p.vars[0]}, // we are sure that it is monadic (becauce of the panic in the beginning of this func)
+						[]string{p.vars[0]}, // we are sure that it is monadic (because of the panic in the beginning of this func)
 						to_async(p.cont),
 					},
 				},
@@ -157,8 +157,8 @@ func to_async(p proc) proc {
 		}
 
 	case output_proc:
-		established_channel_on_receiver_side := fresh_name() // which is "y" in the doc
-		established_channel_on_sender_side := fresh_var()    // which is "c" in the doc
+		established_channel_on_receiver_side := fresh_var() // which is "y" in the doc
+		established_channel_on_sender_side := fresh_name()  // which is "c" in the doc
 		return res_proc{
 			channel: established_channel_on_sender_side,
 			cont: parallel_proc{
@@ -173,7 +173,7 @@ func to_async(p proc) proc {
 					cont: parallel_proc{
 						left: output_proc{
 							channel: established_channel_on_receiver_side,
-							values:  []string{p.values[0]}, // we are sure that it is monadic (becauce of the panic in the beginning of this func)
+							values:  []string{p.values[0]}, // we are sure that it is monadic (because of the panic in the beginning of this func)
 							cont:    nil,
 						},
 						right: to_async(p.cont),
@@ -182,7 +182,7 @@ func to_async(p proc) proc {
 			},
 		}
 	default:
-		return nil_proc{}
+		panic("Not implemented")
 	}
 }
 
@@ -193,7 +193,7 @@ func indirect_encoding(p proc) proc {
 }
 
 func output_direct_encoding(p output_proc) proc {
-	var fixed_stablished_channel = fresh_name()
+	var fixed_established_channel = fresh_name()
 	var continuation = direct_encoding(p.cont)
 
 	for i := len(p.values) - 1; i >= 0; i-- {
@@ -211,18 +211,18 @@ func output_direct_encoding(p output_proc) proc {
 		}
 
 		continuation = input_proc{
-			channel: fixed_stablished_channel,
+			channel: fixed_established_channel,
 			vars:    []string{temp_channel},
 			cont:    continuation,
 		}
 
 	}
 	return res_proc{
-		channel: fixed_stablished_channel,
+		channel: fixed_established_channel,
 		cont: parallel_proc{
 			output_proc{
 				p.channel,
-				[]string{fixed_stablished_channel},
+				[]string{fixed_established_channel},
 				nil,
 			},
 			continuation,
@@ -291,7 +291,7 @@ func direct_encoding(p proc) proc {
 		}
 
 	default:
-		return nil_proc{}
+		panic("Not implemented")
 	}
 
 }
