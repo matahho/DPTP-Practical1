@@ -4,6 +4,11 @@
 // Syntax of processes do not contain base values: only channels are passed around
 // GPLv3 2025, MobilityReadingGroup, University of Oxford
 
+// The reason that it need less messages/channels is that because it needs less new channel establishment.
+// in the indirect encoding for each variable/name we need to establish a new channel for sending each pair
+// but in the direct encoding we only establish a channel once then we can use it for all of our data as well.
+// Also in the indirect encoding we need some new channels/messages for both monadic transition and async transition seperately
+
 package main
 
 import (
@@ -13,19 +18,27 @@ import (
 	"time"
 )
 
-var free_name_counter = 0
-var free_var_counter = 0
+type CommunicationEfficiency struct {
+	numberOfChannels int
+	numberOfMessages int
+}
+
+var directEncodingEfficiency CommunicationEfficiency
+var indirectEncodingEfficiency CommunicationEfficiency
+
+var freeNameCounter = 0
+var freeVarCounter = 0
 
 func fresh_name() string {
-	new_name := "_a" + strconv.Itoa(free_name_counter)
-	free_name_counter++
-	return new_name
+	newName := "_a" + strconv.Itoa(freeNameCounter)
+	freeNameCounter++
+	return newName
 }
 
 func fresh_var() string {
-	new_var := "_x" + strconv.Itoa(free_var_counter)
-	free_var_counter++
-	return new_var
+	newVar := "_x" + strconv.Itoa(freeVarCounter)
+	freeVarCounter++
+	return newVar
 }
 
 // polyadic synchronous to monadic synchronous
@@ -395,9 +408,6 @@ func main() {
 	pd := direct_encoding(p)
 	fmt.Printf("Direct Encoding: %s\n\n", pd)
 
-	// run() returns as soon as it has spawned its goroutines -- there is no
-	// termination detection (handout 4d) -- so the main thread has to wait for
-	// them itself (handout 4e).
 	fmt.Println("--- running indirect encoding ---")
 	run(pi, make(map[string]chan any))
 	time.Sleep(500 * time.Millisecond)
