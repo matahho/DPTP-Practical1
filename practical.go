@@ -23,8 +23,7 @@ type CommunicationEfficiency struct {
 	numberOfMessages int
 }
 
-var directEncodingEfficiency CommunicationEfficiency
-var indirectEncodingEfficiency CommunicationEfficiency
+var encodingEfficiency CommunicationEfficiency
 
 var freeNameCounter = 0
 var freeVarCounter = 0
@@ -351,6 +350,7 @@ func run(p proc, stack map[string]chan any) {
 
 	case res_proc:
 		stack[p.channel] = make(chan any, chan_buffer)
+		encodingEfficiency.numberOfChannels++
 		fmt.Printf("[nu]   %s\n", p.channel)
 		run(p.cont, stack)
 
@@ -358,6 +358,7 @@ func run(p proc, stack map[string]chan any) {
 		// u < a > , since it is async no more cont is needed
 		target := lookup(stack, p.channel)
 		payload := lookup(stack, p.values[0])
+		encodingEfficiency.numberOfMessages++
 		fmt.Printf("[send] %s<%s>\n", p.channel, p.values[0])
 		target <- payload
 		return
@@ -398,6 +399,17 @@ func run(p proc, stack map[string]chan any) {
 	}
 }
 
+func reset_counters() {
+	encodingEfficiency.numberOfMessages = 0
+	encodingEfficiency.numberOfChannels = 0
+}
+func report_counters() {
+	fmt.Println(" ---- [counters START] ----")
+	fmt.Printf("Number of  channels: %d\n", encodingEfficiency.numberOfChannels)
+	fmt.Printf("Number of  messages: %d\n", encodingEfficiency.numberOfMessages)
+	fmt.Println(" ---- [counters END] ----")
+}
+
 func main() {
 	p := example3()
 	fmt.Printf("Example: %s\n\n", p)
@@ -412,7 +424,12 @@ func main() {
 	run(pi, make(map[string]chan any))
 	time.Sleep(500 * time.Millisecond)
 
+	report_counters()
+	reset_counters()
 	fmt.Println("\n--- running direct encoding ---")
 	run(pd, make(map[string]chan any))
 	time.Sleep(500 * time.Millisecond)
+
+	report_counters()
+	reset_counters()
 }
