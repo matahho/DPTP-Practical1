@@ -15,12 +15,13 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
 type CommunicationEfficiency struct {
-	numberOfChannels int
-	numberOfMessages int
+	numberOfChannels atomic.Int32
+	numberOfMessages atomic.Int32
 }
 
 var encodingEfficiency CommunicationEfficiency
@@ -64,10 +65,6 @@ func to_monadic(p proc) proc {
 		}
 
 	case input_proc:
-		if (len(p.vars)) == 1 {
-			return p
-		}
-
 		established_channel := fresh_var()
 		var constructed_cont proc
 		constructed_cont = to_monadic(p.cont)
@@ -88,10 +85,6 @@ func to_monadic(p proc) proc {
 		}
 
 	case output_proc:
-		if len(p.values) == 1 {
-			return p
-		}
-
 		established_channel := fresh_name()
 		var constructed_cont proc
 		constructed_cont = to_monadic(p.cont)
@@ -350,7 +343,7 @@ func run(p proc, stack map[string]chan any) {
 
 	case res_proc:
 		stack[p.channel] = make(chan any, chan_buffer)
-		encodingEfficiency.numberOfChannels++
+		encodingEfficiency.numberOfChannels.Add(1)
 		fmt.Printf("[nu]   %s\n", p.channel)
 		run(p.cont, stack)
 
@@ -358,7 +351,7 @@ func run(p proc, stack map[string]chan any) {
 		// u < a > , since it is async no more cont is needed
 		target := lookup(stack, p.channel)
 		payload := lookup(stack, p.values[0])
-		encodingEfficiency.numberOfMessages++
+		encodingEfficiency.numberOfMessages.Add(1)
 		fmt.Printf("[send] %s<%s>\n", p.channel, p.values[0])
 		target <- payload
 		return
@@ -400,13 +393,13 @@ func run(p proc, stack map[string]chan any) {
 }
 
 func reset_counters() {
-	encodingEfficiency.numberOfMessages = 0
-	encodingEfficiency.numberOfChannels = 0
+	encodingEfficiency.numberOfMessages.Store(0)
+	encodingEfficiency.numberOfChannels.Store(0)
 }
 func report_counters() {
 	fmt.Println(" ---- [counters START] ----")
-	fmt.Printf("Number of  channels: %d\n", encodingEfficiency.numberOfChannels)
-	fmt.Printf("Number of  messages: %d\n", encodingEfficiency.numberOfMessages)
+	fmt.Printf("Number of  channels: %d\n", encodingEfficiency.numberOfChannels.Load())
+	fmt.Printf("Number of  messages: %d\n", encodingEfficiency.numberOfMessages.Load())
 	fmt.Println(" ---- [counters END] ----")
 }
 
